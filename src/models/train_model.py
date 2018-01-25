@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import datetime
 import os
 import logging
 
@@ -9,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 from .embeddings import get_embeddings
-from .rnn import BiGRUSimple
+from .rnn import *
 from .train_utils import train_folds
 
 
@@ -28,7 +29,7 @@ PROBABILITIES_NORMALIZE_COEFFICIENT = 1.4
 @click.argument('embedding_path', type=click.Path(exists=True))
 @click.option('--max-vocab', type=click.INT, default=20000)
 @click.option('--embed-size', type=click.INT, default=100)
-@click.option('--result-path', type=click.Path(), default='toxic_results')
+@click.option('--result-path', type=click.Path(), default='models')
 @click.option('--batch-size', '-b', type=click.INT, default=256)
 @click.option('--sentences-length', type=click.INT, default=128)
 @click.option('--recurrent-units', type=click.INT, default=64)
@@ -76,7 +77,7 @@ def main(train_file_path, test_file_path, embedding_path, result_path,
         if embedding_vector is not None:
             embedding_matrix[i] = embedding_vector
 
-    get_model_func = lambda: BiGRUSimple(
+    get_model_func = lambda: BiGRUAtt(
         embedding_matrix,
         sentences_length,
         dropout_rate,
@@ -91,11 +92,13 @@ def main(train_file_path, test_file_path, embedding_path, result_path,
 
     click.echo("Predicting results...")
     test_predicts_list = []
+    ts = datetime.datetime.now().isoformat()
     for fold_id, model in enumerate(models):
-        model_path = os.path.join(result_path, "model{0}_weights.npy".format(fold_id))
-        np.save(model_path, model.get_weights())
+        dir_model = os.path.join(result_path, ts, str(fold_id))
+        os.makedirs(dir_model, exist_ok=True)
+        model.save(dir_model)
 
-        test_predicts_path = os.path.join(result_path, "test_predicts{0}.npy".format(fold_id))
+        test_predicts_path = os.path.join(dir_model, "test_predicts.npy")
         test_predicts = model.predict(X_test, batch_size=batch_size)
         test_predicts_list.append(test_predicts)
         np.save(test_predicts_path, test_predicts)
@@ -113,7 +116,7 @@ def main(train_file_path, test_file_path, embedding_path, result_path,
     test_predicts = pd.DataFrame(data=test_predicts, columns=CLASSES)
     test_predicts["id"] = test_ids
     test_predicts = test_predicts[["id"] + CLASSES]
-    submit_path = os.path.join(result_path, "submit")
+    submit_path = os.path.join(result_path, ts, "submission.csv")
     test_predicts.to_csv(submit_path, index=False)
 
 if __name__ == "__main__":

@@ -32,21 +32,23 @@ class ClassificationModel(abc.ABC):
     def compile(self):
         pass
 
-    def train(self, x, y, epochs=10, batch_size=8, early_stop=True):
+    def fit(self, x, y, early_stop=True, **kwargs):
         board = TensorBoard(log_dir='logs', histogram_freq=0, batch_size=50,
                             write_graph=True, write_grads=False,
                             write_images=False, embeddings_freq=0,
                             embeddings_layer_names=None, embeddings_metadata=None)
 
-        early_stop = EarlyStopping(monitor='loss', min_delta=0.001, patience=1)
+        if 'validation_data' in kwargs:
+            early_stop = EarlyStopping(monitor='val_loss', min_delta=0.001, patience=1)
+        else:
+            early_stop = EarlyStopping(monitor='loss', min_delta=0.001, patience=1)
 
         self._model.fit(
             x, y,
-            epochs=epochs,
-            batch_size=batch_size,
-            callbacks=[board, early_stop] if early_stop else [board])
+            callbacks=[board, early_stop] if early_stop else [board],
+            **kwargs)
 
-    def train_gen(self, gen, epochs=20, steps_per_epoch=10000, early_stop=True):
+    def fit_generator(self, gen, epochs=20, steps_per_epoch=10000, early_stop=True):
         board = TensorBoard(log_dir='logs', histogram_freq=0, batch_size=50,
                             write_graph=True, write_grads=False,
                             write_images=False, embeddings_freq=0,
@@ -60,11 +62,11 @@ class ClassificationModel(abc.ABC):
             steps_per_epoch=steps_per_epoch,
             callbacks=[board, early_stop] if early_stop else [board])
 
-    def evaluate(self, x, y):
-        return self._model.evaluate(x, y)
+    def evaluate(self, x, y, **kwargs):
+        return self._model.evaluate(x, y, **kwargs)
 
-    def evaluate_gen(self, gen, steps=1000):
-        return self._model.evaluate_generator(gen, steps)
+    def evaluate_gen(self, gen, **kwargs):
+        return self._model.evaluate_generator(gen, **kwargs)
 
-    def predict(self, x):
-        return self._model.predict(x)
+    def predict(self, x, **kwargs):
+        return self._model.predict(x, **kwargs)

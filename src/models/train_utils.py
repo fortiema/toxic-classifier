@@ -16,7 +16,8 @@ def _train_model(model, batch_size, train_x, train_y, val_x, val_y):
     current_epoch = 0
 
     while True:
-        model.fit(train_x, train_y, batch_size=batch_size, epochs=1)
+        model.compile()
+        model.model.fit(train_x, train_y, batch_size=batch_size, epochs=1)
         y_pred = model.predict(val_x, batch_size=batch_size)
 
         total_loss = 0
@@ -31,13 +32,13 @@ def _train_model(model, batch_size, train_x, train_y, val_x, val_y):
         current_epoch += 1
         if total_loss < best_loss or best_loss == -1:
             best_loss = total_loss
-            best_weights = model.get_weights()
+            best_weights = model.model.get_weights()
             best_epoch = current_epoch
         else:
             if current_epoch - best_epoch == 5:
                 break
 
-    model.set_weights(best_weights)
+    model.model.set_weights(best_weights)
     return model
 
 
@@ -46,6 +47,7 @@ def train_folds(X, y, fold_count, batch_size, get_model_func):
     models = []
 
     for fold_id in range(0, fold_count):
+        print('===== FOLD {} ====='.format(fold_id))
         fold_start = fold_size * fold_id
         fold_end = fold_start + fold_size
 
@@ -58,7 +60,13 @@ def train_folds(X, y, fold_count, batch_size, get_model_func):
         val_x = X[fold_start:fold_end]
         val_y = y[fold_start:fold_end]
 
-        model = _train_model(get_model_func(), batch_size, train_x, train_y, val_x, val_y)
+        # model = _train_model(get_model_func(), batch_size, train_x, train_y, val_x, val_y)
+        model = get_model_func()
+        model.compile()
+        model.fit(
+            train_x, train_y, validation_data=(val_x, val_y),
+            batch_size=batch_size, epochs=10, shuffle=True
+        )
         models.append(model)
 
     return models
