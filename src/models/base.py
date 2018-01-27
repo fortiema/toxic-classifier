@@ -39,9 +39,9 @@ class ClassificationModel(abc.ABC):
                             embeddings_layer_names=None, embeddings_metadata=None)
 
         if 'validation_data' in kwargs:
-            early_stop = EarlyStopping(monitor='val_loss', min_delta=0.001, patience=1)
+            early_stop = EarlyStopping(monitor='val_loss', min_delta=0.001, patience=2)
         else:
-            early_stop = EarlyStopping(monitor='loss', min_delta=0.001, patience=1)
+            early_stop = EarlyStopping(monitor='loss', min_delta=0.001, patience=2)
 
         self._model.fit(
             x, y,
