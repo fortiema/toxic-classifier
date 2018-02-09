@@ -1,5 +1,5 @@
-from keras.layers import Dense, Embedding, Input
-from keras.layers import Bidirectional, Dropout, CuDNNGRU, TimeDistributed
+from keras.layers import Dense, Embedding, Input, Activation, BatchNormalization
+from keras.layers import Bidirectional, Dropout, CuDNNGRU, TimeDistributed, SpatialDropout1D
 from keras.models import Model
 from keras.optimizers import RMSprop
 
@@ -43,10 +43,6 @@ class BiGRUSimple(ClassificationModel):
             metrics=['accuracy']
         )
 
-    @property
-    def model(self):
-        return self._model
-
 
 class BiGRUAtt(ClassificationModel):
     """Simple Bi-GRU model with Dense penultimate layer
@@ -66,8 +62,10 @@ class BiGRUAtt(ClassificationModel):
         """
         input_layer = Input(shape=(sequence_length,))
         embedding_layer = Embedding(embedding_matrix.shape[0], embedding_matrix.shape[1],
-                                    weights=[embedding_matrix], trainable=False)(input_layer)
+                                    # weights=[embedding_matrix], trainable=True)(input_layer)
+                                    trainable=True)(input_layer)
         x = Bidirectional(CuDNNGRU(recurrent_units, return_sequences=True))(embedding_layer)
+        x = SpatialDropout1D(dropout_rate)(x)
         x = Bidirectional(CuDNNGRU(recurrent_units, return_sequences=True))(x)
         x = Attention()(x)
         x = Dropout(dropout_rate)(x)
@@ -81,10 +79,6 @@ class BiGRUAtt(ClassificationModel):
     def compile(self):
         self._model.compile(
             loss='binary_crossentropy',
-            optimizer=RMSprop(clipvalue=1, clipnorm=1),
+            optimizer=RMSprop(rho=0.75, clipvalue=1, clipnorm=1),
             metrics=['accuracy']
         )
-
-    @property
-    def model(self):
-        return self._model

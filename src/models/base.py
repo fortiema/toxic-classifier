@@ -27,6 +27,10 @@ class ClassificationModel(abc.ABC):
         model_file.close()
         self._model = model_from_json(model_json)
         self._model.load_weights(os.path.join(dirname, 'weights.h5'))
+    
+    @property
+    def model(self):
+        return self._model
 
     @abstractmethod
     def compile(self):
