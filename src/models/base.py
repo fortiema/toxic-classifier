@@ -36,7 +36,7 @@ class ClassificationModel(abc.ABC):
     def compile(self):
         pass
 
-    def fit(self, x, y, early_stop=True, **kwargs):
+    def fit(self, x, y, early_stop=True, add_callbacks=None, **kwargs):
         board = TensorBoard(log_dir='logs', histogram_freq=0, batch_size=50,
                             write_graph=True, write_grads=False,
                             write_images=False, embeddings_freq=0,
@@ -47,9 +47,11 @@ class ClassificationModel(abc.ABC):
         else:
             early_stop = EarlyStopping(monitor='loss', min_delta=0.001, patience=2)
 
+        callbacks = [board, early_stop].extend(add_callbacks) or [board, early_stop]
+
         self._model.fit(
             x, y,
-            callbacks=[board, early_stop] if early_stop else [board],
+            callbacks=callbacks if early_stop else [board],
             **kwargs)
 
     def fit_generator(self, gen, epochs=20, steps_per_epoch=10000, early_stop=True):

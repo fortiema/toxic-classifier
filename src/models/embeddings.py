@@ -5,8 +5,11 @@ def get_coefs(word,*arr):
     return word, np.asarray(arr, dtype='float32')
 
 
-def get_embeddings(embeddings_fname, embed_size):
-    embeddings_index = dict(get_coefs(*o.strip().split()) for o in open(embeddings_fname))
+def get_embeddings(embeddings_fname, embed_size, skip_fisrt=False):
+    embeddings_index = dict(
+        get_coefs(*o.strip().split()) 
+        for idx, o in enumerate(open(embeddings_fname)) if (idx or not skip_fisrt)
+    )
 
     bad_entries = []
     for k, v in embeddings_index.items():
