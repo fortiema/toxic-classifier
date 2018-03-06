@@ -43,15 +43,15 @@ class ClassificationModel(abc.ABC):
                             embeddings_layer_names=None, embeddings_metadata=None)
 
         if 'validation_data' in kwargs:
-            early_stop = EarlyStopping(monitor='val_loss', min_delta=0.001, patience=2)
+            early_stop = EarlyStopping(monitor='val_loss', mode='min', patience=3)
         else:
-            early_stop = EarlyStopping(monitor='loss', min_delta=0.001, patience=2)
+            early_stop = EarlyStopping(monitor='loss', min_delta=0.001, patience=3)
 
         callbacks = [board, early_stop].extend(add_callbacks) or [board, early_stop]
 
         self._model.fit(
             x, y,
-            callbacks=callbacks if early_stop else [board],
+            callbacks=callbacks,
             **kwargs)
 
     def fit_generator(self, gen, epochs=20, steps_per_epoch=10000, early_stop=True):

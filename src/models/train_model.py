@@ -9,10 +9,9 @@ from keras.preprocessing.sequence import pad_sequences
 import numpy as np
 import pandas as pd
 
-from .embeddings import get_embeddings
-from .rnn import *
-from .mixed import *
-from .train_utils import train_folds
+from src.models.embeddings import get_embeddings
+from src.models.zoo import *
+from src.models.train_utils import train_folds
 
 
 UNKNOWN_WORD = "_UNK_"
@@ -21,20 +20,18 @@ NAN_WORD = "_NAN_"
 
 CLASSES = ["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]
 
-PROBABILITIES_NORMALIZE_COEFFICIENT = 1.4
-
 
 @click.command()
 @click.argument('train_file_path', type=click.Path(exists=True))
 @click.argument('test_file_path', type=click.Path(exists=True))
 @click.argument('embedding_path', type=click.Path(exists=True))
-@click.option('--max-vocab', type=click.INT, default=20000)
+@click.option('--max-vocab', type=click.INT, default=15000)
 @click.option('--embed-size', type=click.INT, default=100)
 @click.option('--result-path', type=click.Path(), default='models')
 @click.option('--char-model', is_flag=True)
 @click.option('--batch-size', '-b', type=click.INT, default=256)
 @click.option('--sentences-length', type=click.INT, default=192)
-@click.option('--recurrent-units', type=click.INT, default=64)
+@click.option('--recurrent-units', type=click.INT, default=128)
 @click.option('--dropout-rate', type=click.FLOAT, default=0.3)
 @click.option('--dense-size', type=click.INT, default=32)
 @click.option('--fold-count', '-f', type=click.INT, default=10)
@@ -68,7 +65,7 @@ def main(train_file_path, test_file_path, embedding_path, result_path, char_mode
     if char_model:
         click.echo("Preparing char-level input in train set...")
         char_tokenized_sentences_train = char_tokenizer.texts_to_sequences(list_sentences_train)
-        X_train_char = np.expand_dims(pad_sequences(char_tokenized_sentences_train, maxlen=sentences_length*5), 1)
+        X_train_char = pad_sequences(char_tokenized_sentences_train, maxlen=sentences_length*5)
 
     click.echo("Tokenizing sentences in test set...")
     tokenized_sentences_test = tokenizer.texts_to_sequences(list_sentences_test)
@@ -77,7 +74,7 @@ def main(train_file_path, test_file_path, embedding_path, result_path, char_mode
     if char_model:
         click.echo("Preparing char-level input in test set...")
         char_tokenized_sentences_test = char_tokenizer.texts_to_sequences(list_sentences_test)
-        X_test_char = np.expand_dims(pad_sequences(char_tokenized_sentences_test, maxlen=sentences_length*5), 1)
+        X_test_char = pad_sequences(char_tokenized_sentences_test, maxlen=sentences_length*5)
 
     click.echo("Loading embeddings...")
     embedding_index, emb_mean, emb_std = get_embeddings(embedding_path, embed_size)
@@ -93,7 +90,7 @@ def main(train_file_path, test_file_path, embedding_path, result_path, char_mode
         if embedding_vector is not None:
             embedding_matrix[i] = embedding_vector
 
-    get_model_func = lambda: BiGRUAtt(
+    get_model_func = lambda: LSTMCNN(
         embedding_matrix,
         sentences_length,
         dropout_rate,
@@ -107,9 +104,20 @@ def main(train_file_path, test_file_path, embedding_path, result_path, char_mode
     #     dropout_rate
     # )
 
+    # get_model_func = lambda: CharLSTMCNN(
+    #     sentences_length*5,
+    #     len(char_tokenizer.word_index),
+    #     dropout_rate,
+    #     recurrent_units,
+    #     dense_size
+    # )
+
+    click.echo('Model Parameters:')
+
     click.echo("Starting to train models...")
     if char_model:
-        models = train_folds([X_train, X_train_char], y_train, fold_count, batch_size, get_model_func)
+        models = train_folds(X_train_char, y_train, fold_count, batch_size, get_model_func)
+        # models = train_folds([X_train, X_train_char], y_train, fold_count, batch_size, get_model_func)
     else:
         models = train_folds(X_train, y_train, fold_count, batch_size, get_model_func)
 
@@ -126,7 +134,8 @@ def main(train_file_path, test_file_path, embedding_path, result_path, char_mode
 
         test_predicts_path = os.path.join(dir_model, "test_predicts.npy")
         if char_model:
-            test_predicts = model.predict([X_test, X_test_char], batch_size=batch_size)
+            test_predicts = model.predict(X_test_char, batch_size=batch_size)
+            # test_predicts = model.predict([X_test, X_test_char], batch_size=batch_size)
         else:
             test_predicts = model.predict(X_test, batch_size=batch_size)
         test_predicts_list.append(test_predicts)
@@ -137,7 +146,6 @@ def main(train_file_path, test_file_path, embedding_path, result_path, char_mode
         test_predicts *= fold_predict
 
     test_predicts **= (1. / len(test_predicts_list))
-    # test_predicts **= PROBABILITIES_NORMALIZE_COEFFICIENT
 
     test_ids = test_data["id"].values
     test_ids = test_ids.reshape((len(test_ids), 1))

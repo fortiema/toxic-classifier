@@ -20,6 +20,8 @@ Classifier engine for toxic online comments
 * models - Placeholder for saving models
 * notebooks - IPython Experiments
 * src - Source code
+  * data - Script to preprocess dataset
+  * models - Script and utilities to train and eval models
 
 
 
